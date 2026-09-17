@@ -1,0 +1,533 @@
+# ======================================================
+# SALES DATA ANALYSIS
+# PART 1
+# ======================================================
+
+import warnings
+warnings.filterwarnings("ignore")
+
+import pandas as pd
+import numpy as np
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.express as px
+
+sns.set_style("whitegrid")
+plt.rcParams["figure.figsize"]=(10,6)
+
+# ======================================================
+# LOAD DATA
+# ======================================================
+
+data = pd.read_csv(
+    "sales_data_sample.csv",
+    encoding="ISO-8859-1"
+)
+
+print("Dataset Shape :", data.shape)
+
+data.head()
+
+# ======================================================
+# DATA INFORMATION
+# ======================================================
+
+print(data.info())
+
+print(data.describe())
+
+# ======================================================
+# REMOVE UNNECESSARY COLUMNS
+# ======================================================
+
+drop_columns = [
+
+    "ORDERLINENUMBER",
+    "STATUS",
+    "PRODUCTCODE",
+    "PHONE",
+    "STATE",
+    "POSTALCODE",
+    "TERRITORY",
+    "CONTACTFIRSTNAME",
+    "CONTACTLASTNAME"
+
+]
+
+data.drop(columns=drop_columns,inplace=True)
+
+# ======================================================
+# MERGE ADDRESS
+# ======================================================
+
+data["ADDRESS"] = (
+    data["ADDRESSLINE1"].fillna("") +
+    " " +
+    data["ADDRESSLINE2"].fillna("")
+)
+
+data.drop(
+    ["ADDRESSLINE1","ADDRESSLINE2"],
+    axis=1,
+    inplace=True
+)
+
+# ======================================================
+# CONVERT DATE
+# ======================================================
+
+data["ORDERDATE"] = pd.to_datetime(data["ORDERDATE"])
+
+# ======================================================
+# CREATE EXTRA DATE FEATURES
+# ======================================================
+
+data["YEAR"] = data["ORDERDATE"].dt.year
+data["MONTH"] = data["ORDERDATE"].dt.month
+data["DAY"] = data["ORDERDATE"].dt.day
+
+# ======================================================
+# MISSING VALUES
+# ======================================================
+
+print("\nMissing Values\n")
+
+print(data.isnull().sum())
+
+# ======================================================
+# DUPLICATES
+# ======================================================
+
+print("\nDuplicate Rows :",data.duplicated().sum())
+
+# ======================================================
+# DATA TYPES
+# ======================================================
+
+print(data.dtypes)
+
+# ======================================================
+# FIRST FIVE ROWS
+# ======================================================
+
+data.head()
+
+# ======================================================
+# SALES DATA ANALYSIS
+# PART 2
+# ======================================================
+
+# -------------------------------
+# Monthly Sales
+# -------------------------------
+
+monthly_sales = data.groupby(
+    ["YEAR_ID","MONTH_ID"]
+)["SALES"].sum().reset_index()
+
+plt.figure(figsize=(12,6))
+
+sns.lineplot(
+    data=monthly_sales,
+    x="MONTH_ID",
+    y="SALES",
+    hue="YEAR_ID",
+    marker="o"
+)
+
+plt.title("Monthly Sales")
+
+plt.xlabel("Month")
+
+plt.ylabel("Sales")
+
+plt.show()
+
+
+# -------------------------------
+# Yearly Sales
+# -------------------------------
+
+yearly_sales = data.groupby(
+    "YEAR_ID"
+)["SALES"].sum().reset_index()
+
+print(yearly_sales)
+
+plt.figure(figsize=(8,5))
+
+ax=sns.barplot(
+    data=yearly_sales,
+    x="YEAR_ID",
+    y="SALES",
+    palette="viridis"
+)
+
+for container in ax.containers:
+    ax.bar_label(container)
+
+plt.title("Yearly Sales")
+
+plt.show()
+
+
+# -------------------------------
+# Product Line Sales
+# -------------------------------
+
+product_sales=data.groupby(
+    "PRODUCTLINE"
+)["SALES"].sum().reset_index()
+
+plt.figure(figsize=(12,6))
+
+sns.barplot(
+    data=product_sales,
+    x="PRODUCTLINE",
+    y="SALES",
+    palette="magma"
+)
+
+plt.xticks(rotation=45)
+
+plt.title("Sales by Product Line")
+
+plt.show()
+
+
+# -------------------------------
+# Quarter Wise Sales
+# -------------------------------
+
+quarter_sales=data.groupby(
+    ["PRODUCTLINE","QTR_ID"]
+).size().reset_index(name="COUNT")
+
+plt.figure(figsize=(12,6))
+
+sns.stripplot(
+    data=quarter_sales,
+    x="PRODUCTLINE",
+    y="COUNT",
+    hue="QTR_ID",
+    size=12
+)
+
+plt.xticks(rotation=45)
+
+plt.title("Quarter Wise Sales")
+
+plt.show()
+
+
+# -------------------------------
+# Top 10 Customers
+# -------------------------------
+
+top_customer=data.groupby(
+    "CUSTOMERNAME"
+)["SALES"].sum()
+
+top_customer=top_customer.sort_values(
+    ascending=False
+).head(10)
+
+top_customer=top_customer.reset_index()
+
+plt.figure(figsize=(12,6))
+
+sns.barplot(
+    data=top_customer,
+    x="CUSTOMERNAME",
+    y="SALES",
+    palette="rocket"
+)
+
+plt.xticks(rotation=70)
+
+plt.title("Top 10 Customers")
+
+plt.show()
+
+
+# -------------------------------
+# Sales by Country
+# -------------------------------
+
+country=data.groupby(
+    "COUNTRY"
+)["SALES"].sum().reset_index()
+
+fig=px.choropleth(
+
+    country,
+
+    locations="COUNTRY",
+
+    locationmode="country names",
+
+    color="SALES",
+
+    hover_name="COUNTRY",
+
+    title="Sales by Country"
+
+)
+
+fig.show()
+
+
+# -------------------------------
+# Top 10 Cities
+# -------------------------------
+
+city=data.groupby(
+    "CITY"
+)["SALES"].sum()
+
+city=city.sort_values(
+    ascending=False
+).head(10)
+
+city=city.reset_index()
+
+plt.figure(figsize=(12,6))
+
+sns.barplot(
+
+    data=city,
+
+    x="CITY",
+
+    y="SALES",
+
+    palette="cubehelix"
+
+)
+
+plt.xticks(rotation=45)
+
+plt.title("Top 10 Cities by Sales")
+
+plt.show()
+
+# ======================================================
+# SALES DATA ANALYSIS
+# PART 3
+# ======================================================
+
+# -----------------------------------
+# Average Sales Per Item
+# -----------------------------------
+
+data["AVG_SALES_PER_ITEM"] = (
+
+    data["SALES"] /
+
+    data["QUANTITYORDERED"]
+
+)
+
+# -----------------------------------
+# Revenue
+# -----------------------------------
+
+data["REVENUE"] = (
+
+    data["PRICEEACH"]
+
+    *
+
+    data["QUANTITYORDERED"]
+
+)
+
+# -----------------------------------
+# Total Sales
+# -----------------------------------
+
+data["TOTAL_SALES"] = (
+
+    data["PRICEEACH"]
+
+    *
+
+    data["QUANTITYORDERED"]
+
+)
+
+# -----------------------------------
+# Average Price
+# -----------------------------------
+
+average_price = data["PRICEEACH"].mean()
+
+print("Average Price :",average_price)
+
+# -----------------------------------
+# Monthly Revenue
+# -----------------------------------
+
+monthly_revenue=data.groupby(
+
+    data["ORDERDATE"].dt.month
+
+)["REVENUE"].sum().reset_index()
+
+monthly_revenue.columns=[
+
+    "Month",
+
+    "Revenue"
+
+]
+
+plt.figure(figsize=(10,6))
+
+sns.barplot(
+
+    data=monthly_revenue,
+
+    x="Month",
+
+    y="Revenue",
+
+    palette="crest"
+
+)
+
+plt.title("Monthly Revenue")
+
+plt.show()
+
+# -----------------------------------
+# Sales Distribution
+# -----------------------------------
+
+plt.figure(figsize=(10,6))
+
+sns.histplot(
+
+    data["SALES"],
+
+    bins=30,
+
+    kde=True,
+
+    color="green"
+
+)
+
+plt.title("Sales Distribution")
+
+plt.show()
+
+# -----------------------------------
+# Correlation Heatmap
+# -----------------------------------
+
+numeric=data.select_dtypes(include=np.number)
+
+plt.figure(figsize=(12,8))
+
+sns.heatmap(
+
+    numeric.corr(),
+
+    annot=True,
+
+    cmap="coolwarm"
+
+)
+
+plt.title("Correlation Matrix")
+
+plt.show()
+
+# -----------------------------------
+# Top 10 Products
+# -----------------------------------
+
+top_products=data.groupby(
+
+    "PRODUCTLINE"
+
+)["SALES"].sum()
+
+top_products=top_products.sort_values(
+
+    ascending=False
+
+)
+
+print(top_products)
+
+# -----------------------------------
+# Top Countries
+# -----------------------------------
+
+top_country=data.groupby(
+
+    "COUNTRY"
+
+)["SALES"].sum()
+
+top_country=top_country.sort_values(
+
+    ascending=False
+
+)
+
+print(top_country)
+
+# -----------------------------------
+# Top Deal Size
+# -----------------------------------
+
+deal=data.groupby(
+
+    "DEALSIZE"
+
+)["SALES"].sum().reset_index()
+
+plt.figure(figsize=(8,5))
+
+sns.barplot(
+
+    data=deal,
+
+    x="DEALSIZE",
+
+    y="SALES",
+
+    palette="Set2"
+
+)
+
+plt.title("Sales by Deal Size")
+
+plt.show()
+
+# -----------------------------------
+# Correlation Values
+# -----------------------------------
+
+print(numeric.corr())
+
+# -----------------------------------
+# Save Final Dataset
+# -----------------------------------
+
+data.to_csv(
+
+    "Sales_Data_Analysis_Output.csv",
+
+    index=False
+
+)
+
+print("\nAnalysis Completed Successfully.")
+
+print("Output File Saved Successfully.")
+
